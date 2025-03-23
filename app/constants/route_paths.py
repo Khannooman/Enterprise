@@ -8,3 +8,7 @@ class RoutePaths:
     DOCS = "/docs"
     STATIC = "/static"
     PING = "/api/v1/health"
+    USER = "/user"
+    USER_WITH_ID = "/user/{user_id}"
+    CUSTOMER = "/customer"
+    CUSTOMER_WITH_ID = "/customer/{customer_id}"

@@ -49,7 +49,8 @@ class DatabaseController(UtilityManager):
             :user_id, :username, :password, :email, :phone_number, :company_name,
             :addressline1, :addressline2, :landmark, :city, :state, :pincode, :country
         )
-        RETURNING *;
+        RETURNING user_id, username, email, phone_number, company_name,
+            addressline1, addressline2, landmark, city, state, pincode, country;
         """
 
         params = {
@@ -73,7 +74,7 @@ class DatabaseController(UtilityManager):
 
     def get_user(self, user_id: str, return_json: Optional[bool] = False) -> Dict:
         """Retrieve a user by ID"""
-        query = "SELECT * FROM users WHERE id = :id"
+        query = "SELECT * FROM users WHERE user_id = :id"
         user = self.db.execute_query(query, params={"id": user_id}, fetch_one=True, return_json=return_json)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -97,8 +98,6 @@ class DatabaseController(UtilityManager):
     ) -> Dict:
         """Update a user's details"""
         updates = {}
-        if username: updates["username"] = username
-        if email: updates["email"] = email
         if phone_number: updates["phone_number"] = phone_number
         if company_name: updates["company_name"] = company_name
         if addressline1: updates["addressline1"] = addressline1
@@ -113,7 +112,9 @@ class DatabaseController(UtilityManager):
             raise HTTPException(status_code=400, detail="No fields to update")
 
         set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
-        query = f"UPDATE users SET {set_clause} WHERE id = :id RETURNING *;"
+        query = f"""UPDATE users SET {set_clause} WHERE user_id = :id
+                    RETURNING user_id, username, email, phone_number, company_name,
+                    addressline1, addressline2, landmark, city, state, pincode, country;"""
         updates["id"] = user_id
 
         user = self.db.execute_query(query, params=updates, fetch_one=True, return_json=return_json)
@@ -132,6 +133,26 @@ class DatabaseController(UtilityManager):
         """Fetch all users"""
         query = "SELECT * FROM users"
         return self.db.execute_query(query, fetch_all=True, return_json=return_json)
+    
+    def verify_user(self, email: str, password: str, return_json: bool=False) -> Dict:
+        """Verify user credentials and return user ID if successful."""
+        try:
+            query = "SELECT * FROM users WHERE email = :email"
+            user = self.db.execute_query(query, params={"email": email}, fetch_one=True, return_json=return_json)
+            if user and self.verify_password(password, user['password']):
+                return user
+            
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid credentials"
+            )
+        
+        except Exception as e:
+            logging.error(f"Error verifying user: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to verify user credentials: {str(e)}"
+            )
 
     # ====== Customer Management Methods ======
 

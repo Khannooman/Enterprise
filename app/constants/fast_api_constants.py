@@ -25,12 +25,12 @@ This project leverages the capabilities of FastAPI to ensure a high-performance,
     VERSION = "1.0.0"
     T_N_C = "http://erp.com/terms-and-conditions"
     CONTACT = {
-        "name": "Khursheed Gaddi",
+        "name": "Nooman Khan",
         "url": "https://erp.com",
-        "email": "gaddi33khursheed@gmail.com",
+        "email": "khannooman8586@gmail.com",
     }
     LICENSE_INFO = {
-        "name": "PicksieAI",
+        "name": "ERP",
         "url": "http://erp/license",
     }
 

@@ -151,7 +151,7 @@ class PostgreSQLManager(UtilityManager):
                 """ 
                 CREATE TABLE IF NOT EXISTS users (
                 user_id VARCHAR(50) PRIMARY KEY,
-                username VARCHAR(50) UNIQUE NOT NULL,
+                username VARCHAR(50) NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 email VARCHAR(100),
                 phone_number VARCHAR(20),
@@ -186,7 +186,7 @@ class PostgreSQLManager(UtilityManager):
                     expiry_date DATE,
                     quantity INTEGER NOT NULL CHECK (quantity >= 0),
                     mrp DECIMAL(10, 2) NOT NULL,
-                    distributer_loading DECIMAL(10, 2),
+                    distributer_landing DECIMAL(10, 2),
                     selling_price DECIMAL(10, 2) NOT NULL,
                     PRIMARY KEY (product_id, user_id),
                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE

@@ -5,3 +5,5 @@ class RouteTags:
     TESTS = "API Testings"
 
     RESPONSES = "Responses"
+    USER = "User"
+    CUSTOMER = "Customer"

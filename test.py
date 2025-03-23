@@ -1,4 +1,4 @@
-from app.controllers.database_controllers import DatabaseController
+from app.controllers.database_controller import DatabaseController
 db = DatabaseController()
 
 # Create a user
