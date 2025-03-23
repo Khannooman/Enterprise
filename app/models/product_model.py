@@ -46,3 +46,14 @@ class ProductUpdateModel(BaseModel):
                 "quantity": 150
             }
         }
+
+
+class StockEntryModel(BaseModel):
+    quantity: int = Field(..., gt=0, description="Quantity to add to stock")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "quantity": 50
+            }
+        }

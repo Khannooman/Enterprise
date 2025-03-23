@@ -46,7 +46,8 @@ CREATE TABLE orders (
     product_id VARCHAR(50),
     user_id VARCHAR(50),
     customer_id VARCHAR(50),
-    created_by VARCHAR(50),
+    created_by_name VARCHAR(50),
+    invoice_id VARCHAR(50),
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     rate DECIMAL(10, 2) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
@@ -55,6 +56,18 @@ CREATE TABLE orders (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (product_id, user_id) REFERENCES products(product_id, user_id) ON DELETE CASCADE,
     FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE SET NULL
 );
 
+CREATE TABLE invoices (
+    invoice_id VARCHAR(50) PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL,
+    customer_id VARCHAR(50),
+    invoice_number VARCHAR(50) NOT NULL UNIQUE,
+    invoice_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    created_by_name VARCHAR(50),
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
+);

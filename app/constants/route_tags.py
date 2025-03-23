@@ -7,3 +7,6 @@ class RouteTags:
     RESPONSES = "Responses"
     USER = "User"
     CUSTOMER = "Customer"
+    PRODUCT = "Product"
+    ORDER = "Order"
+    INVOICE = "Invoice"
