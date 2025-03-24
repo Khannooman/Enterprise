@@ -38,7 +38,8 @@ class OrderCreateModel(BaseModel):
                     }
                 ],
                 "created_by_name": "John Doe",
-                "invoice_id": "inv-789"
+                "invoice_id": "inv-789",
+                "customer_id": "cust-456"
             }
         }
 

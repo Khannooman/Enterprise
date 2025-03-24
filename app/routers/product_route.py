@@ -40,7 +40,7 @@ class ProductRouters(UtilityManager):
                 weight=product.weight,
                 batch_number=product.batch_number,
                 expiry_date=product.expiry_date,
-                distributer_loading=product.distributer_landing,
+                distributer_landing=product.distributer_landing,
                 return_json=True
             )
             return ResponseModel(
@@ -98,7 +98,7 @@ class ProductRouters(UtilityManager):
                 expiry_date=product_update.expiry_date,
                 quantity=product_update.quantity,
                 mrp=product_update.mrp,
-                distributer_loading=product_update.distributer_landing,
+                distributer_landing=product_update.distributer_landing,
                 selling_price=product_update.selling_price,
                 return_json=True
             )

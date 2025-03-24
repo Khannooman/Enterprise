@@ -43,7 +43,12 @@ class ProductUpdateModel(BaseModel):
             "example": {
                 "product": "Widget A Updated",
                 "selling_price": 27.99,
-                "quantity": 150
+                "quantity": 150,
+                "mrp": 31.99,
+                "distributer_landing": 22.50,
+                "weight": "600g",
+                "batch_number": "B12346",
+                "expiry_date": "2026-12-31"
             }
         }
 

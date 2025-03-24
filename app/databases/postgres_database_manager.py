@@ -212,7 +212,7 @@ class PostgreSQLManager(UtilityManager):
                 );
                 """,
                 """
-                 CREATE TABLE invoices (
+                 CREATE TABLE IF NOT EXISTS invoices (
                     invoice_id VARCHAR(50) PRIMARY KEY,
                     user_id VARCHAR(50) NOT NULL,
                     customer_id VARCHAR(50),

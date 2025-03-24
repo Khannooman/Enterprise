@@ -6,6 +6,7 @@ from app.routers.user_route import UserRouter
 from app.routers.customer_route import CustomerRouter
 from app.routers.user_route import UserRouter
 from app.routers.order_route import OrderRouter
+from app.routers.product_route import ProductRouters
 
 class RouterRegistration:
     def __init__(self, app: FastAPI):
@@ -16,7 +17,7 @@ class RouterRegistration:
         customer_router = CustomerRouter()
         user_router = UserRouter()
         order_router = OrderRouter()
-
+        product_router = ProductRouters()
 
         app.include_router(docs_router.router)
         app.include_router(test_router.router)
@@ -26,4 +27,5 @@ class RouterRegistration:
         app.include_router(user_router.router)
         app.include_router(order_router.router)
         app.include_router(order_router.router)
+        app.include_router(product_router.router)
 

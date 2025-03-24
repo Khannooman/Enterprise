@@ -14,6 +14,7 @@ class RoutePaths:
     CUSTOMER_WITH_ID = "/customer/{customer_id}"
     PRODUCT = "/product"
     PRODUCT_WITH_ID = "/product/{product_id}"
+    PRODUCT_STOCK = "/product/stock"
     ORDER = "/order"
     ORDER_WITH_ID = "/order/{order_id}"
     ORDER_BY_CUSTOMER = "/order/by-customer/{customer_id}"

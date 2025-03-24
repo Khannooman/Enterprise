@@ -126,7 +126,7 @@ class DatabaseController(UtilityManager):
 
     def delete_user(self, user_id: str) -> None:
         """Delete a user"""
-        query = "DELETE FROM users WHERE id = :id"
+        query = "DELETE FROM users WHERE user_id = :user_id RETURNING user_id;"
         result = self.db.execute_query(query, params={"id": user_id}, fetch_one=False)
         if not result:
             raise HTTPException(status_code=404, detail="User not found")
@@ -134,7 +134,7 @@ class DatabaseController(UtilityManager):
     def get_all_users(self, return_json: Optional[bool] = False) -> List[Dict]:
         """Fetch all users"""
         query = "SELECT * FROM users"
-        return self.db.execute_query(query, fetch_all=True, return_json=return_json)
+        return self.db.execute_query(query, return_json=return_json)
     
     def verify_user(self, email: str, password: str, return_json: bool=False) -> Dict:
         """Verify user credentials and return user ID if successful."""
@@ -225,15 +225,15 @@ class DatabaseController(UtilityManager):
 
     def delete_customer(self, customer_id: str) -> None:
         """Delete a customer"""
-        query = "DELETE FROM customers WHERE customer_id = :customer_id"
-        result = self.db.execute_query(query, params={"customer_id": customer_id}, fetch_one=False)
+        query = "DELETE FROM customers WHERE customer_id = :customer_id  RETURNING customer_id;"
+        result = self.db.execute_query(query, params={"customer_id": customer_id}, fetch_one=True)
         if not result:
             raise HTTPException(status_code=404, detail="Customer not found")
 
     def get_all_customers(self, user_id: str, return_json: Optional[bool] = False) -> List[Dict]:
         """Fetch all customers for a user"""
         query = "SELECT * FROM customers WHERE user_id = :user_id"
-        return self.db.execute_query(query, params={"user_id": user_id}, fetch_all=True, return_json=return_json)
+        return self.db.execute_query(query, params={"user_id": user_id}, return_json=return_json)
 
     # ====== Product Management Methods ======
 
@@ -247,7 +247,7 @@ class DatabaseController(UtilityManager):
         weight: Optional[str] = None,
         batch_number: Optional[str] = None,
         expiry_date: Optional[date] = None,
-        distributer_loading: Optional[float] = None,
+        distributer_landing: Optional[float] = None,
         return_json: Optional[bool] = False
     ) -> Dict:
         """Create a new product"""
@@ -255,11 +255,11 @@ class DatabaseController(UtilityManager):
         query = """
         INSERT INTO products (
             product_id, user_id, product, weight, batch_number, expiry_date, quantity,
-            mrp, distributer_loading, selling_price
+            mrp, distributer_landing, selling_price
         )
         VALUES (
             :product_id, :user_id, :product, :weight, :batch_number, :expiry_date, :quantity,
-            :mrp, :distributer_loading, :selling_price
+            :mrp, :distributer_landing, :selling_price
         )
         RETURNING *;
         """
@@ -272,7 +272,7 @@ class DatabaseController(UtilityManager):
             "expiry_date": expiry_date,
             "quantity": quantity,
             "mrp": mrp,
-            "distributer_loading": distributer_loading,
+            "distributer_landing": distributer_landing,
             "selling_price": selling_price
         }
         product = self.db.execute_query(query, params, fetch_one=True, return_json=return_json)
@@ -330,7 +330,7 @@ class DatabaseController(UtilityManager):
         expiry_date: Optional[date] = None,
         quantity: Optional[int] = None,
         mrp: Optional[float] = None,
-        distributer_loading: Optional[float] = None,
+        distributer_landing: Optional[float] = None,
         selling_price: Optional[float] = None,
         return_json: Optional[bool] = False
     ) -> Dict:
@@ -342,7 +342,7 @@ class DatabaseController(UtilityManager):
         if expiry_date: updates["expiry_date"] = expiry_date
         if quantity is not None: updates["quantity"] = quantity
         if mrp is not None: updates["mrp"] = mrp
-        if distributer_loading is not None: updates["distributer_loading"] = distributer_loading
+        if distributer_landing is not None: updates["distributer_landing"] = distributer_landing
         if selling_price is not None: updates["selling_price"] = selling_price
 
         if not updates:
@@ -359,7 +359,7 @@ class DatabaseController(UtilityManager):
 
     def delete_product(self, product_id: str, user_id: str) -> None:
         """Delete a product"""
-        query = "DELETE FROM products WHERE product_id = :product_id AND user_id = :user_id"
+        query = "DELETE FROM products WHERE product_id = :product_id AND user_id = :user_id RETURNING product_id;"
         result = self.db.execute_query(query, params={"product_id": product_id, "user_id": user_id}, fetch_one=False)
         if not result:
             raise HTTPException(status_code=404, detail="Product not found")
@@ -367,7 +367,7 @@ class DatabaseController(UtilityManager):
     def get_all_products(self, user_id: str, return_json: Optional[bool] = False) -> List[Dict]:
         """Fetch all products for a user"""
         query = "SELECT * FROM products WHERE user_id = :user_id"
-        return self.db.execute_query(query, params={"user_id": user_id}, fetch_all=True, return_json=return_json)
+        return self.db.execute_query(query, params={"user_id": user_id}, return_json=return_json)
 
     # ====== Order Management Methods ======
 
@@ -454,7 +454,7 @@ class DatabaseController(UtilityManager):
     def get_invoice_orders(self, invoice_id: str, return_json: Optional[bool] = False) -> List[Dict]:
         """Retrieve all orders for an invoice by invoice_id"""
         query = "SELECT * FROM orders WHERE invoice_id = :invoice_id"
-        return self.db.execute_query(query, params={"invoice_id": invoice_id}, fetch_all=True, return_json=return_json)
+        return self.db.execute_query(query, params={"invoice_id": invoice_id}, return_json=return_json)
 
     def create_invoice_with_orders(
         self,
@@ -596,7 +596,7 @@ class DatabaseController(UtilityManager):
         """Delete an order and restore stock"""
         order = self.get_order(order_id, user_id)
         
-        query = "DELETE FROM orders WHERE order_id = :order_id AND user_id = :user_id"
+        query = "DELETE FROM orders WHERE order_id = :order_id AND user_id = :user_id RETURNING order_id;"
         result = self.db.execute_query(query, params={"order_id": order_id, "user_id": user_id}, fetch_one=False)
         if not result:
             raise HTTPException(status_code=404, detail="Order not found")
@@ -616,7 +616,7 @@ class DatabaseController(UtilityManager):
     def get_all_orders(self, user_id: str, return_json: Optional[bool] = False) -> List[Dict]:
         """Fetch all orders for a user"""
         query = "SELECT * FROM orders WHERE user_id = :user_id"
-        return self.db.execute_query(query, params={"user_id": user_id}, fetch_all=True, return_json=return_json)
+        return self.db.execute_query(query, params={"user_id": user_id}, return_json=return_json)
 
     # ====== Useful Utility Functions ======
 
@@ -631,12 +631,12 @@ class DatabaseController(UtilityManager):
     def get_orders_by_customer(self, customer_id: str, return_json: Optional[bool] = False) -> List[Dict]:
         """Fetch all orders for a customer"""
         query = "SELECT * FROM orders WHERE customer_id = :customer_id"
-        return self.db.execute_query(query, params={"customer_id": customer_id}, fetch_all=True, return_json=return_json)
+        return self.db.execute_query(query, params={"customer_id": customer_id}, return_json=return_json)
 
     def get_stock_summary(self, user_id: str, return_json: Optional[bool] = False) -> List[Dict]:
         """Get stock summary for a user's products"""
         query = "SELECT product_id, product, quantity, selling_price FROM products WHERE user_id = :user_id"
-        return self.db.execute_query(query, params={"user_id": user_id}, fetch_all=True, return_json=return_json)
+        return self.db.execute_query(query, params={"user_id": user_id}, return_json=return_json)
 
     def get_profit_summary(self, user_id: str, start_date: Optional[date] = None, end_date: Optional[date] = None, return_json: Optional[bool] = False) -> List[Dict]:
         """Calculate profit per order for a user"""
@@ -659,4 +659,4 @@ class DatabaseController(UtilityManager):
             query += " AND o.order_date <= :end_date"
             params["end_date"] = end_date
 
-        return self.db.execute_query(query, params=params, fetch_all=True, return_json=return_json)
+        return self.db.execute_query(query, params=params, return_json=return_json)
