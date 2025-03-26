@@ -56,7 +56,7 @@ CREATE TABLE orders (
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (product_id, user_id) REFERENCES products(product_id, user_id) ON DELETE CASCADE,
     FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL,
-    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE SET NULL
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE
 );
 
 CREATE TABLE invoices (

@@ -30,22 +30,40 @@ class OrderRouter(UtilityManager):
             self.setup_routes()
 
     def setup_routes(self):
+    #     @self.router.post(RoutePaths.ORDER, tags=[RouteTags.ORDER], response_model=ResponseModel)
+    #     @self.catch_api_exceptions
+    #     async def create_order(user_id: str, order: OrderCreateModel):
+    #         """Create multiple orders in a single request"""
+    #         orders_list = [order.dict() for order in order.orders]
+    #         order_data = self.order_manager.create_order(
+    #             user_id=user_id,
+    #             customer_id=order.customer_id,
+    #             orders=orders_list,
+    #             created_by_name=order.created_by_name,
+    #             invoice_id=order.invoice_id,
+    #             return_json=True
+    #         )
+    #         return ResponseModel(
+    #             message="Orders Created Successfully",
+    #             data=order_data
+    #         )
+
         @self.router.post(RoutePaths.ORDER, tags=[RouteTags.ORDER], response_model=ResponseModel)
         @self.catch_api_exceptions
-        async def create_order(user_id: str, order: OrderCreateModel):
-            """Create multiple orders in a single request"""
-            orders_list = [order.dict() for order in order.orders]
-            order_data = self.order_manager.create_order(
+        async def create_order(user_id: str, invoice: InvoiceWithOrdersCreateModel):
+            """Create an invoice and associated orders in a single transaction"""
+            orders_list = [order.dict() for order in invoice.orders]
+            invoice_data = self.order_manager.create_order(
                 user_id=user_id,
-                customer_id=order.customer_id,
+                customer_id=invoice.customer_id,
                 orders=orders_list,
-                created_by_name=order.created_by_name,
-                invoice_id=order.invoice_id,
+                invoice_number=invoice.invoice_number,
+                created_by_name=invoice.created_by_name,
                 return_json=True
             )
             return ResponseModel(
-                message="Orders Created Successfully",
-                data=order_data
+                message="Invoice and Orders Created Successfully",
+                data=invoice_data
             )
 
         @self.router.get(RoutePaths.ORDER, tags=[RouteTags.ORDER], response_model=ResponseModel)
@@ -72,23 +90,19 @@ class OrderRouter(UtilityManager):
 
         @self.router.put(RoutePaths.ORDER_WITH_ID, tags=[RouteTags.ORDER], response_model=ResponseModel)
         @self.catch_api_exceptions
-        async def update_order(order_id: str, user_id: str, order_update: OrderUpdateModel):
-            """Update an order"""
+        async def update_order(order_id: str, user_id: str, order: OrderUpdateModel):
+            """Update an order and adjust associated invoice if applicable"""
             updated_order = self.order_manager.update_order(
                 order_id=order_id,
                 user_id=user_id,
-                quantity=order_update.quantity,
-                rate=order_update.rate,
-                customer_id=order_update.customer_id,
+                quantity=order.quantity,
+                rate=order.rate,
+                customer_id=order.customer_id,
                 return_json=True
             )
             return ResponseModel(
-                message="Order updated successfully",
-                data={
-                    "order_id": order_id,
-                    "user_id": user_id,
-                    "response": updated_order
-                }
+                message="Order Updated Successfully",
+                data=updated_order
             )
 
         @self.router.delete(RoutePaths.ORDER_WITH_ID, tags=[RouteTags.ORDER], response_model=ResponseModel)
@@ -101,34 +115,17 @@ class OrderRouter(UtilityManager):
                 data={"order_id": order_id, "user_id": user_id}
             )
 
-        @self.router.get(RoutePaths.ORDER_BY_CUSTOMER, tags=[RouteTags.ORDER], response_model=ResponseModel)
-        @self.catch_api_exceptions
-        async def get_orders_by_customer(customer_id: str):
-            """Get all orders for a customer"""
-            orders = self.order_manager.get_orders_by_customer(customer_id=customer_id, return_json=True)
-            return ResponseModel(
-                message="Customer Orders Fetched Successfully",
-                data=orders
-            )
+        # @self.router.get(RoutePaths.ORDER_BY_CUSTOMER, tags=[RouteTags.ORDER], response_model=ResponseModel)
+        # @self.catch_api_exceptions
+        # async def get_orders_by_customer(customer_id: str):
+        #     """Get all orders for a customer"""
+        #     orders = self.order_manager.get_orders_by_customer(customer_id=customer_id, return_json=True)
+        #     return ResponseModel(
+        #         message="Customer Orders Fetched Successfully",
+        #         data=orders
+        #     )
         
-        def setup_routes(self):
-            @self.router.post(RoutePaths.INVOICE_WITH_ORDERS, tags=[RouteTags.INVOICE], response_model=ResponseModel)
-            @self.catch_api_exceptions
-            async def create_invoice_with_orders(user_id: str, invoice: InvoiceWithOrdersCreateModel):
-                """Create an invoice and associated orders in a single transaction"""
-                orders_list = [order.dict() for order in invoice.orders]
-                invoice_data = self.order_manager.create_invoice_with_orders(
-                    user_id=user_id,
-                    customer_id=invoice.customer_id,
-                    orders=orders_list,
-                    invoice_number=invoice.invoice_number,
-                    created_by_name=invoice.created_by_name,
-                    return_json=True
-                )
-                return ResponseModel(
-                    message="Invoice and Orders Created Successfully",
-                    data=invoice_data
-                )
+       
 
         @self.router.get(RoutePaths.INVOICE_BY_NUMBER, tags=[RouteTags.INVOICE], response_model=ResponseModel)
         @self.catch_api_exceptions
@@ -155,4 +152,16 @@ class OrderRouter(UtilityManager):
             return ResponseModel(
                 message="Invoice Orders Retrieved Successfully",
                 data=orders
+            )
+        @self.router.delete(RoutePaths.INVOICE_WITH_ID, tags=[RouteTags.INVOICE], response_model=ResponseModel)
+        @self.catch_api_exceptions 
+        async def delete_invoice(invoice_id: str, user_id: str):
+            """Delete an invoice by invoice_number"""
+            self.order_manager.delete_invoice(invoice_id=invoice_id, user_id=user_id, return_json=True)
+            return ResponseModel(
+                message="Invoice deleted successfully",
+                data={
+                    "invoice_id": invoice_id,
+                    "user_id": user_id
+                    }
             )

@@ -252,6 +252,10 @@ class DatabaseController(UtilityManager):
     ) -> Dict:
         """Create a new product"""
         product_id = self.generate_uuid()
+        user = self.get_user(user_id, return_json=True)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
         query = """
         INSERT INTO products (
             product_id, user_id, product, weight, batch_number, expiry_date, quantity,
@@ -371,92 +375,79 @@ class DatabaseController(UtilityManager):
 
     # ====== Order Management Methods ======
 
+    # def create_order(
+    #     self,
+    #     user_id: str,
+    #     customer_id: str,
+    #     orders: List[dict],  # List of order dictionaries
+    #     created_by_name: Optional[str] = None,
+    #     invoice_id: Optional[str] = None,
+    #     return_json: Optional[bool] = False
+    # ) -> List[Dict]:
+    #     """
+    #     Create one or more orders and update product quantities in a single transaction.
+        
+    #     Args:
+    #         user_id (str): The ID of the user owning the orders.
+    #         customer_id (str): The ID of the customer for whom the orders are placed.
+    #         orders (List[dict]): List of orders, each containing product_id, customer_id, quantity, and rate.
+    #         created_by_name (Optional[str]): Name of the person creating the orders.
+    #         invoice_id (Optional[str]): ID of the associated invoice.
+    #         return_json (Optional[bool]): Whether to return results as JSON-compatible dictionaries.
+        
+    #     Returns:
+    #         List[Dict]: List of created order records.
+    #     """
+    #     order_results = []
+
+    #     # Use a transaction to ensure atomicity
+    #     for order_data in orders:
+    #         order_id = self.generate_uuid()
+    #         product_id = order_data["product_id"]
+    #         quantity = order_data["quantity"]
+    #         rate = order_data["rate"]
+    #         amount = quantity * rate
+
+    #         # Check product availability
+    #         product = self.get_product(product_id, user_id)
+    #         if product["quantity"] < quantity:
+    #             raise HTTPException(status_code=400, detail=f"Insufficient stock for product {product_id}")
+
+    #         # Insert order
+    #         query = """
+    #         INSERT INTO orders (
+    #             order_id, product_id, user_id, customer_id, created_by_name, invoice_id, quantity, rate, amount
+    #         )
+    #         VALUES (
+    #             :order_id, :product_id, :user_id, :customer_id, :created_by_name, :invoice_id, :quantity, :rate, :amount
+    #         )
+    #         RETURNING *;
+    #         """
+    #         params = {
+    #             "order_id": order_id,
+    #             "product_id": product_id,
+    #             "user_id": user_id,
+    #             "customer_id": customer_id,
+    #             "created_by_name": created_by_name,
+    #             "invoice_id": invoice_id,
+    #             "quantity": quantity,
+    #             "rate": rate,
+    #             "amount": amount
+    #         }
+    #         order = self.db.execute_query(query, params, fetch_one=True, return_data=return_json)
+    #         order_results.append(order)
+
+    #         # Update product stock
+    #         update_query = """
+    #         UPDATE products 
+    #         SET quantity = quantity - :quantity 
+    #         WHERE product_id = :product_id AND user_id = :user_id
+    #         """
+    #         self.db.execute_query(update_query, {"quantity": quantity, "product_id": product_id, "user_id": user_id})
+
+    #     return order_results
+
     def create_order(
-        self,
-        user_id: str,
-        customer_id: str,
-        orders: List[dict],  # List of order dictionaries
-        created_by_name: Optional[str] = None,
-        invoice_id: Optional[str] = None,
-        return_json: Optional[bool] = False
-    ) -> List[Dict]:
-        """
-        Create one or more orders and update product quantities in a single transaction.
-        
-        Args:
-            user_id (str): The ID of the user owning the orders.
-            customer_id (str): The ID of the customer for whom the orders are placed.
-            orders (List[dict]): List of orders, each containing product_id, customer_id, quantity, and rate.
-            created_by_name (Optional[str]): Name of the person creating the orders.
-            invoice_id (Optional[str]): ID of the associated invoice.
-            return_json (Optional[bool]): Whether to return results as JSON-compatible dictionaries.
-        
-        Returns:
-            List[Dict]: List of created order records.
-        """
-        order_results = []
-
-        # Use a transaction to ensure atomicity
-        for order_data in orders:
-            order_id = self.generate_uuid()
-            product_id = order_data["product_id"]
-            quantity = order_data["quantity"]
-            rate = order_data["rate"]
-            amount = quantity * rate
-
-            # Check product availability
-            product = self.get_product(product_id, user_id)
-            if product["quantity"] < quantity:
-                raise HTTPException(status_code=400, detail=f"Insufficient stock for product {product_id}")
-
-            # Insert order
-            query = """
-            INSERT INTO orders (
-                order_id, product_id, user_id, customer_id, created_by_name, invoice_id, quantity, rate, amount
-            )
-            VALUES (
-                :order_id, :product_id, :user_id, :customer_id, :created_by_name, :invoice_id, :quantity, :rate, :amount
-            )
-            RETURNING *;
-            """
-            params = {
-                "order_id": order_id,
-                "product_id": product_id,
-                "user_id": user_id,
-                "customer_id": customer_id,
-                "created_by_name": created_by_name,
-                "invoice_id": invoice_id,
-                "quantity": quantity,
-                "rate": rate,
-                "amount": amount
-            }
-            order = self.db.execute_query(query, params, fetch_one=True, return_data=return_json)
-            order_results.append(order)
-
-            # Update product stock
-            update_query = """
-            UPDATE products 
-            SET quantity = quantity - :quantity 
-            WHERE product_id = :product_id AND user_id = :user_id
-            """
-            self.db.execute_query(update_query, {"quantity": quantity, "product_id": product_id, "user_id": user_id})
-
-        return order_results
-
-    def get_invoice(self, invoice_number: str, return_json: Optional[bool] = False) -> Dict:
-        """Retrieve an invoice by invoice_number"""
-        query = "SELECT * FROM invoices WHERE invoice_number = :invoice_number"
-        invoice = self.db.execute_query(query, params={"invoice_number": invoice_number}, fetch_one=True, return_json=return_json)
-        if not invoice:
-            raise HTTPException(status_code=404, detail="Invoice not found")
-        return invoice
-
-    def get_invoice_orders(self, invoice_id: str, return_json: Optional[bool] = False) -> List[Dict]:
-        """Retrieve all orders for an invoice by invoice_id"""
-        query = "SELECT * FROM orders WHERE invoice_id = :invoice_id"
-        return self.db.execute_query(query, params={"invoice_id": invoice_id}, return_json=return_json)
-
-    def create_invoice_with_orders(
         self,
         user_id: str,
         customer_id: str,
@@ -471,6 +462,28 @@ class DatabaseController(UtilityManager):
         total_amount = 0.0
 
         with self.db.engine.begin() as conn:
+            # Step 1: Insert the invoice first with a temporary total_amount
+            invoice_query = """
+            INSERT INTO invoices (
+                invoice_id, user_id, customer_id, invoice_number, total_amount, created_by_name
+            )
+            VALUES (
+                :invoice_id, :user_id, :customer_id, :invoice_number, :total_amount, :created_by_name
+            )
+            RETURNING *;
+            """
+            invoice_params = {
+                "invoice_id": invoice_id,
+                "user_id": user_id,
+                "customer_id": customer_id,
+                "invoice_number": invoice_number,
+                "total_amount": 0.0,  # Temporary value, updated later
+                "created_by_name": created_by_name
+            }
+            invoice = conn.execute(text(invoice_query), invoice_params).fetchone()
+            invoice_result = dict(invoice._mapping) if return_json else invoice
+
+            # Step 2: Process orders
             for order_data in orders:
                 order_id = self.generate_uuid()
                 product_id = order_data["product_id"]
@@ -479,7 +492,7 @@ class DatabaseController(UtilityManager):
                 amount = quantity * rate
                 total_amount += amount
 
-                product = self.get_product(product_id, user_id)
+                product = self.get_product(product_id, user_id, return_json=True)
                 if product["quantity"] < quantity:
                     raise HTTPException(status_code=400, detail=f"Insufficient stock for product {product_id}")
 
@@ -513,28 +526,40 @@ class DatabaseController(UtilityManager):
                 """
                 conn.execute(text(stock_query), {"quantity": quantity, "product_id": product_id, "user_id": user_id})
 
-            invoice_query = """
-            INSERT INTO invoices (
-                invoice_id, user_id, customer_id, invoice_number, total_amount, created_by_name
-            )
-            VALUES (
-                :invoice_id, :user_id, :customer_id, :invoice_number, :total_amount, :created_by_name
-            )
+            # Step 3: Update the invoice with the calculated total_amount
+            update_invoice_query = """
+            UPDATE invoices 
+            SET total_amount = :total_amount 
+            WHERE invoice_id = :invoice_id
             RETURNING *;
             """
             invoice_params = {
                 "invoice_id": invoice_id,
-                "user_id": user_id,
-                "customer_id": customer_id,
-                "invoice_number": invoice_number,
-                "total_amount": total_amount,
-                "created_by_name": created_by_name
+                "total_amount": total_amount
             }
-            invoice = conn.execute(text(invoice_query), invoice_params).fetchone()
+            invoice = conn.execute(text(update_invoice_query), invoice_params).fetchone()
             invoice_result = dict(invoice._mapping) if return_json else invoice
 
         invoice_result["orders"] = order_results
         return invoice_result
+
+    
+    def get_invoice(self, invoice_number: str, return_json: Optional[bool] = False) -> Dict:
+        """Retrieve an invoice by invoice_number"""
+        query = "SELECT * FROM invoices WHERE invoice_number = :invoice_number"
+        invoice = self.db.execute_query(query, params={"invoice_number": invoice_number}, fetch_one=True, return_json=return_json)
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        return invoice
+    
+
+
+    def get_invoice_orders(self, invoice_id: str, return_json: Optional[bool] = False) -> List[Dict]:
+        """Retrieve all orders for an invoice by invoice_id"""
+        query = "SELECT * FROM orders WHERE invoice_id = :invoice_id"
+        return self.db.execute_query(query, params={"invoice_id": invoice_id}, return_json=return_json)
+    
+
     
     def get_order(self, order_id: str, user_id: str, return_json: Optional[bool] = False) -> Dict:
         """Retrieve an order by ID and user_id"""
@@ -543,6 +568,7 @@ class DatabaseController(UtilityManager):
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
         return order
+    
 
     def update_order(
         self,
@@ -553,10 +579,13 @@ class DatabaseController(UtilityManager):
         customer_id: Optional[str] = None,
         return_json: Optional[bool] = False
     ) -> Dict:
-        """Update an order and adjust stock if quantity changes"""
-        order = self.get_order(order_id, user_id)
+        """Update an order, adjust stock if quantity changes, and update the associated invoice's total_amount"""
+        # Fetch the original order
+        order = self.get_order(order_id, user_id, return_json=True)
         original_quantity = order["quantity"]
+        invoice_id = order.get("invoice_id")  # Check if the order is linked to an invoice
 
+        # Build updates for the order
         updates = {}
         if quantity is not None: updates["quantity"] = quantity
         if rate is not None: updates["rate"] = rate
@@ -565,42 +594,69 @@ class DatabaseController(UtilityManager):
         if not updates:
             raise HTTPException(status_code=400, detail="No fields to update")
 
+        # Recalculate amount if quantity or rate changes
         if "quantity" in updates or "rate" in updates:
             updates["amount"] = (updates.get("quantity", original_quantity)) * (updates.get("rate", order["rate"]))
 
-        set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
-        query = f"UPDATE orders SET {set_clause} WHERE order_id = :order_id AND user_id = :user_id RETURNING *;"
-        updates.update({"order_id": order_id, "user_id": user_id})
+        # Use a transaction to ensure atomicity across orders, products, and invoices
+        with self.db.engine.begin() as conn:
+            # Update the order
+            set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
+            query = f"UPDATE orders SET {set_clause} WHERE order_id = :order_id AND user_id = :user_id RETURNING *;"
+            updates.update({"order_id": order_id, "user_id": user_id})
+            updated_order = conn.execute(text(query), updates).fetchone()
+            if not updated_order:
+                raise HTTPException(status_code=404, detail="Order not found")
+            updated_order_dict = dict(updated_order._mapping) if return_json else updated_order
+            # Adjust stock if quantity changed
+            if quantity is not None and quantity != original_quantity:
+                stock_adjustment = original_quantity - quantity  # Positive if reducing, negative if increasing
+                product_query = """
+                UPDATE products 
+                SET quantity = quantity + :stock_adjustment 
+                WHERE product_id = :product_id AND user_id = :user_id
+                """
+                conn.execute(text(product_query), {
+                    "stock_adjustment": stock_adjustment,
+                    "product_id": order["product_id"],
+                    "user_id": user_id
+                })
 
-        updated_order = self.db.execute_query(query, params=updates, fetch_one=True, return_json=return_json)
-        if not updated_order:
-            raise HTTPException(status_code=404, detail="Order not found")
+            # Update the invoice's total_amount if linked
+            if invoice_id:
+                # Recalculate total_amount by summing all order amounts for this invoice
+                total_amount_query = """
+                SELECT SUM(amount) as total_amount 
+                FROM orders 
+                WHERE invoice_id = :invoice_id
+                """
+                total_amount_result = conn.execute(text(total_amount_query), {"invoice_id": invoice_id}).fetchone()
+                total_amount_result = dict(total_amount_result._mapping) if return_json else total_amount_result
+                new_total_amount = total_amount_result["total_amount"] if total_amount_result else 0.0
+                # Update the invoice
+                invoice_query = """
+                UPDATE invoices 
+                SET total_amount = :total_amount 
+                WHERE invoice_id = :invoice_id
+                RETURNING *;
+                """
+                conn.execute(text(invoice_query), {
+                    "total_amount": new_total_amount,
+                    "invoice_id": invoice_id
+                })
 
-        # Adjust stock if quantity changed
-        if quantity is not None and quantity != original_quantity:
-            stock_adjustment = original_quantity - quantity  # Positive if reducing order, negative if increasing
-            product_query = """
-            UPDATE products 
-            SET quantity = quantity + :stock_adjustment 
-            WHERE product_id = :product_id AND user_id = :user_id
-            """
-            self.db.execute_query(product_query, params={
-                "stock_adjustment": stock_adjustment,
-                "product_id": order["product_id"],
-                "user_id": user_id
-            })
+        return updated_order_dict
+    
 
-        return updated_order
 
     def delete_order(self, order_id: str, user_id: str) -> None:
         """Delete an order and restore stock"""
-        order = self.get_order(order_id, user_id)
-        
+        order = self.get_order(order_id, user_id, return_json=True)
         query = "DELETE FROM orders WHERE order_id = :order_id AND user_id = :user_id RETURNING order_id;"
-        result = self.db.execute_query(query, params={"order_id": order_id, "user_id": user_id}, fetch_one=False)
+        result = self.db.execute_query(query, params={"order_id": order_id, "user_id": user_id}, fetch_one=True, return_json=True)
         if not result:
             raise HTTPException(status_code=404, detail="Order not found")
-
+        
         # Restore stock
         restore_query = """
         UPDATE products 
@@ -613,50 +669,43 @@ class DatabaseController(UtilityManager):
             "user_id": user_id
         })
 
+    
+    def delete_invoice(self, user_id: str, invoice_id: str, return_json: Optional[bool] = False) -> None:
+        """Delete an invoice, let CASCADE delete orders, and restore stock"""
+        with self.db.engine.begin() as conn:
+            # Fetch orders to restore stock before deletion
+            orders_query = """
+            SELECT product_id, quantity 
+            FROM orders 
+            WHERE invoice_id = :invoice_id AND user_id = :user_id
+            """
+            orders = conn.execute(text(orders_query), {"invoice_id": invoice_id, "user_id": user_id}).fetchall()
+            # Delete the invoice (CASCADE will delete orders)
+            delete_query = """
+            DELETE FROM invoices 
+            WHERE invoice_id = :invoice_id AND user_id = :user_id 
+            RETURNING *;
+            """
+            invoice = conn.execute(text(delete_query), {"invoice_id": invoice_id, "user_id": user_id}).fetchone()
+            if not invoice and not orders:
+                raise HTTPException(status_code=404, detail="Invoice not found")
+
+            # Restore stock for all affected products
+            for order in orders:
+                order = dict(order._mapping) if return_json else order
+                restore_stock_query = """
+                UPDATE products 
+                SET quantity = quantity + :quantity 
+                WHERE product_id = :product_id AND user_id = :user_id
+                """
+                conn.execute(text(restore_stock_query), {
+                    "quantity": order["quantity"],
+                    "product_id": order["product_id"],
+                    "user_id": user_id
+                })
+
+
     def get_all_orders(self, user_id: str, return_json: Optional[bool] = False) -> List[Dict]:
         """Fetch all orders for a user"""
         query = "SELECT * FROM orders WHERE user_id = :user_id"
         return self.db.execute_query(query, params={"user_id": user_id}, return_json=return_json)
-
-    # ====== Useful Utility Functions ======
-
-    def get_user_by_username(self, username: str, return_json: Optional[bool] = False) -> Dict:
-        """Retrieve a user by username (e.g., for login)"""
-        query = "SELECT * FROM users WHERE username = :username"
-        user = self.db.execute_query(query, params={"username": username}, fetch_one=True, return_json=return_json)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
-
-    def get_orders_by_customer(self, customer_id: str, return_json: Optional[bool] = False) -> List[Dict]:
-        """Fetch all orders for a customer"""
-        query = "SELECT * FROM orders WHERE customer_id = :customer_id"
-        return self.db.execute_query(query, params={"customer_id": customer_id}, return_json=return_json)
-
-    def get_stock_summary(self, user_id: str, return_json: Optional[bool] = False) -> List[Dict]:
-        """Get stock summary for a user's products"""
-        query = "SELECT product_id, product, quantity, selling_price FROM products WHERE user_id = :user_id"
-        return self.db.execute_query(query, params={"user_id": user_id}, return_json=return_json)
-
-    def get_profit_summary(self, user_id: str, start_date: Optional[date] = None, end_date: Optional[date] = None, return_json: Optional[bool] = False) -> List[Dict]:
-        """Calculate profit per order for a user"""
-        query = """
-        SELECT 
-            o.order_id,
-            o.product_id,
-            o.quantity,
-            o.amount,
-            (o.amount - (p.cost_price * o.quantity)) AS profit
-        FROM orders o
-        JOIN products p ON o.product_id = p.product_id AND o.user_id = p.user_id
-        WHERE o.user_id = :user_id
-        """
-        params = {"user_id": user_id}
-        if start_date:
-            query += " AND o.order_date >= :start_date"
-            params["start_date"] = start_date
-        if end_date:
-            query += " AND o.order_date <= :end_date"
-            params["end_date"] = end_date
-
-        return self.db.execute_query(query, params=params, return_json=return_json)
