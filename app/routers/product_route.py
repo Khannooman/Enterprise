@@ -8,7 +8,7 @@ from app.models.product_model import ProductCreateModel, ProductUpdateModel, Sto
 from threading import Lock
 from app.utils.utility_manager import UtilityManager
 
-class ProductRouters(UtilityManager):
+class ProductRouter(UtilityManager):
     _instance = None
     _lock = Lock()
 
@@ -17,7 +17,7 @@ class ProductRouters(UtilityManager):
             logging.info("-----: Creating new instance of: ProductRouter:-----")
             with cls._lock:
                 if not cls._instance:  # Double-checked locking
-                    cls._instance = super(ProductRouters, cls).__new__(cls)
+                    cls._instance = super(ProductRouter, cls).__new__(cls)
         return cls._instance
     
     def __init__(self):

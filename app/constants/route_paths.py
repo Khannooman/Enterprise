@@ -23,3 +23,6 @@ class RoutePaths:
     INVOICE_BY_NUMBER = "/invoice/{invoice_number}"
     INVOICE_BY_CUSTOMER = "/invoice/by-customer/{customer_id}"
     INVOICE_ORDERS = "/invoice/by-order/"
+    PAYMENT = "/payment"
+    PAYMENT_WITH_ID = "/payment/{payment_id}"
+    PAYMENT_BY_INVOICE = "/invoices/{invoice_id}/payments"

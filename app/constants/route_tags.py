@@ -10,3 +10,4 @@ class RouteTags:
     PRODUCT = "Product"
     ORDER = "Order"
     INVOICE = "Invoice"
+    PAYMENT = "Payment"

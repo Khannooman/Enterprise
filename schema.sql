@@ -67,7 +67,21 @@ CREATE TABLE invoices (
     invoice_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     total_amount DECIMAL(10, 2) NOT NULL,
     created_by_name VARCHAR(50),
+    amount_paid DECIMAL(10, 2) DEFAULT 0.0,
+    payment_status VARCHAR DEFAULT 'Pending',
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(user_id) ON DELETE SET NULL
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL
 );
+
+CREATE TABLE payments(
+    payment_id VARCHAR(50) PRIMARY KEY,
+    invoice_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payment_method VARCHAR(50),  -- e.g., 'cash', 'credit_card', 'bank_transfer'
+    note TEXT,
+    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+)
+

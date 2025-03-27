@@ -709,3 +709,262 @@ class DatabaseController(UtilityManager):
         """Fetch all orders for a user"""
         query = "SELECT * FROM orders WHERE user_id = :user_id"
         return self.db.execute_query(query, params={"user_id": user_id}, return_json=return_json)
+    
+
+    def create_payment(
+        self,
+        user_id: str,
+        invoice_id: str,
+        amount: float,
+        payment_method: Optional[str] = None,
+        note: Optional[str] = None,
+        return_json: Optional[bool] = False
+    ) -> Dict:
+        """Add a payment to an invoice and update its status and amount paid"""
+        payment_id = self.generate_uuid()
+
+        with self.db.engine.begin() as conn:
+            # Step 1: Insert the payment
+            payment_query = """
+            INSERT INTO payments (
+                payment_id, invoice_id, user_id, amount, payment_method, note
+            )
+            VALUES (
+                :payment_id, :invoice_id, :user_id, :amount, :payment_method, :note
+            )
+            RETURNING *;
+            """
+            payment_params = {
+                "payment_id": payment_id,
+                "invoice_id": invoice_id,
+                "user_id": user_id,
+                "amount": amount,
+                "payment_method": payment_method,
+                "note": note
+            }
+            payment = conn.execute(text(payment_query), payment_params).fetchone()
+            payment_result = dict(payment._mapping) if return_json else payment
+
+            # Step 2: Calculate total paid from payments table
+            total_paid_query = """
+            SELECT SUM(amount) as total_paid
+            FROM payments
+            WHERE invoice_id = :invoice_id
+            """
+            total_paid_result = conn.execute(text(total_paid_query), {"invoice_id": invoice_id}).fetchone()
+            total_paid_result = dict(total_paid_result._mapping) if return_json else total_paid_result
+            total_paid = total_paid_result["total_paid"] if total_paid_result["total_paid"] is not None else 0.0
+
+            # Step 3: Fetch invoice details
+            invoice_query = """
+            SELECT total_amount
+            FROM invoices
+            WHERE invoice_id = :invoice_id AND user_id = :user_id
+            """
+            invoice = conn.execute(text(invoice_query), {"invoice_id": invoice_id, "user_id": user_id}).fetchone()
+            invoice = dict(invoice._mapping) if return_json else invoice
+            if not invoice:
+                raise HTTPException(status_code=404, detail="Invoice not found")
+            total_amount = invoice["total_amount"]
+
+            # Step 4: Determine payment status
+            payment_status = (
+                "fully_paid" if total_paid >= total_amount else
+                "partially_paid" if total_paid > 0 else
+                "pending"
+            )
+
+            # Step 5: Update invoice with total paid and status
+            update_invoice_query = """
+            UPDATE invoices
+            SET payment_status = :payment_status,
+                amount_paid = :total_paid
+            WHERE invoice_id = :invoice_id AND user_id = :user_id
+            RETURNING *;
+            """
+            updated_invoice = conn.execute(
+                text(update_invoice_query),
+                {"payment_status": payment_status, "total_paid": total_paid, "invoice_id": invoice_id, "user_id": user_id}
+            ).fetchone()
+            invoice_result = dict(updated_invoice._mapping) if return_json else updated_invoice
+
+        # Return payment details and updated invoice
+        return {
+            "payment": payment_result,
+            "invoice": invoice_result
+        }
+    
+    def get_payment(
+        self,
+        payment_id: str,
+        user_id: str,
+        return_json: Optional[bool] = False
+    ) -> Dict:
+        """Retrieve a payment by ID"""
+        query = """
+        SELECT *
+        FROM payments
+        WHERE payment_id = :payment_id AND user_id = :user_id
+        """
+        payment = self.db.execute_query(query, params={"payment_id": payment_id, "user_id": user_id}, fetch_one=True, return_json=return_json)
+        if not payment:
+            raise HTTPException(status_code=404, detail="Payment not found")
+        return payment
+
+
+    def get_payments_by_invoice(
+        self,
+        invoice_id: str,
+        user_id: str,
+        return_json: Optional[bool] = False
+    ) -> List[Dict]:
+        """Retrieve all payments for an invoice"""
+        query = """
+        SELECT *
+        FROM payments
+        WHERE invoice_id = :invoice_id AND user_id = :user_id
+        """
+        payments = self.db.execute_query(query, params={"invoice_id": invoice_id, "user_id": user_id}, return_json=return_json)
+        return payments
+
+
+    def update_payment(
+        self,
+        payment_id: str,
+        user_id: str,
+        amount: Optional[float] = None,
+        payment_method: Optional[str] = None,
+        note: Optional[str] = None,
+        return_json: Optional[bool] = False
+    ) -> Dict:
+        """Update a payment and adjust the associated invoice"""
+        payment = self.get_payment(payment_id, user_id, return_json=True)
+        invoice_id = payment["invoice_id"]
+
+        updates = {}
+        if amount is not None: updates["amount"] = amount
+        if payment_method is not None: updates["payment_method"] = payment_method
+        if note is not None: updates["note"] = note
+
+        if not updates:
+            raise HTTPException(status_code=400, detail="No fields to update")
+
+        with self.db.engine.begin() as conn:
+            # Update payment
+            set_clause = ", ".join([f"{k} = :{k}" for k in updates.keys()])
+            query = f"""
+            UPDATE payments
+            SET {set_clause}
+            WHERE payment_id = :payment_id AND user_id = :user_id
+            RETURNING *;
+            """
+            updates.update({"payment_id": payment_id, "user_id": user_id})
+            updated_payment = conn.execute(text(query), updates).fetchone()
+            if not updated_payment:
+                raise HTTPException(status_code=404, detail="Payment not found")
+            payment_result = dict(updated_payment._mapping) if return_json else updated_payment
+
+            # Recalculate total paid and update invoice
+            total_paid_query = """
+            SELECT SUM(amount) as total_paid
+            FROM payments
+            WHERE invoice_id = :invoice_id
+            """
+            total_paid_result = conn.execute(text(total_paid_query), {"invoice_id": invoice_id}).fetchone()
+            total_paid_result = dict(total_paid_result._mapping) if return_json else total_paid_result
+            total_paid = total_paid_result["total_paid"] if total_paid_result["total_paid"] is not None else 0.0
+
+            invoice_query = """
+            SELECT total_amount
+            FROM invoices
+            WHERE invoice_id = :invoice_id AND user_id = :user_id
+            """
+            invoice = conn.execute(text(invoice_query), {"invoice_id": invoice_id, "user_id": user_id}).fetchone()
+            invoice = dict(invoice._mapping) if return_json else invoice
+            if not invoice:
+                raise HTTPException(status_code=404, detail="Invoice not found")
+            total_amount = invoice["total_amount"]
+
+            payment_status = (
+                "fully_paid" if total_paid >= total_amount else
+                "partially_paid" if total_paid > 0 else
+                "pending"
+            )
+
+            update_invoice_query = """
+            UPDATE invoices
+            SET amount_paid = :total_paid, payment_status = :payment_status
+            WHERE invoice_id = :invoice_id AND user_id = :user_id
+            RETURNING *;
+            """
+            conn.execute(text(update_invoice_query), {
+                "total_paid": total_paid,
+                "payment_status": payment_status,
+                "invoice_id": invoice_id,
+                "user_id": user_id
+            })
+
+        return payment_result
+    
+    
+    def delete_payment(
+        self,
+        payment_id: str,
+        user_id: str,
+        return_json: Optional[bool] = False
+    ) -> None:
+        """Delete a payment and adjust the associated invoice"""
+        payment = self.get_payment(payment_id, user_id, return_json=True)
+        invoice_id = payment["invoice_id"]
+
+        with self.db.engine.begin() as conn:
+            # Delete payment
+            delete_query = """
+            DELETE FROM payments
+            WHERE payment_id = :payment_id AND user_id = :user_id
+            RETURNING *;
+            """
+            result = conn.execute(text(delete_query), {"payment_id": payment_id, "user_id": user_id}).fetchone()
+            result = dict(result._mapping) if return_json else result
+            if not result:
+                raise HTTPException(status_code=404, detail="Payment not found")
+
+            # Recalculate total paid and update invoice
+            total_paid_query = """
+            SELECT SUM(amount) as total_paid
+            FROM payments
+            WHERE invoice_id = :invoice_id
+            """
+            total_paid_result = conn.execute(text(total_paid_query), {"invoice_id": invoice_id}).fetchone()
+            total_paid_result = dict(total_paid_result._mapping) if return_json else total_paid_result
+            total_paid = total_paid_result["total_paid"] if total_paid_result["total_paid"] is not None else 0.0
+
+            invoice_query = """
+            SELECT total_amount
+            FROM invoices
+            WHERE invoice_id = :invoice_id AND user_id = :user_id
+            """
+            invoice = conn.execute(text(invoice_query), {"invoice_id": invoice_id, "user_id": user_id}).fetchone()
+            invoice = dict(invoice._mapping) if return_json else invoice
+            if not invoice:
+                raise HTTPException(status_code=404, detail="Invoice not found")
+            total_amount = invoice["total_amount"]
+
+            payment_status = (
+                "fully_paid" if total_paid >= total_amount else
+                "partially_paid" if total_paid > 0 else
+                "pending"
+            )
+
+            update_invoice_query = """
+            UPDATE invoices
+            SET amount_paid = :total_paid, payment_status = :payment_status
+            WHERE invoice_id = :invoice_id AND user_id = :user_id
+            RETURNING *;
+            """
+            conn.execute(text(update_invoice_query), {
+                "total_paid": total_paid,
+                "payment_status": payment_status,
+                "invoice_id": invoice_id,
+                "user_id": user_id
+            })
